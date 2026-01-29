@@ -9,6 +9,8 @@ import {
   Settings,
   LogOut,
   Circle,
+  Map,
+  Users,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -64,6 +66,8 @@ export function Sidebar({ agentStatus, onStatusChange }: SidebarProps) {
           <NavItem href="/dashboard/calls" icon={<Phone />} label="Llamadas" />
           <NavItem href="/dashboard/messages" icon={<MessageSquare />} label="Mensajes" />
           <NavItem href="/dashboard/analytics" icon={<BarChart3 />} label="Análisis" />
+          <NavItem href="/dashboard/mapa" icon={<Map />} label="Mapa" />
+          <NavItem href="/dashboard/agentes" icon={<Users />} label="Agentes" />
           <NavItem href="/dashboard/settings" icon={<Settings />} label="Configuración" />
         </ul>
       </nav>

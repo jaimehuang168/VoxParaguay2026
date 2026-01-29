@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from app.core.config import settings
-from app.api.routes import webhooks, campaigns, agents, responses, analytics
+from app.api.routes import webhooks, campaigns, agents, responses, analytics, respondents, analysis
 
 
 @asynccontextmanager
@@ -43,6 +43,8 @@ app.include_router(campaigns.router, prefix="/api/campaigns", tags=["Campañas"]
 app.include_router(agents.router, prefix="/api/agents", tags=["Agentes"])
 app.include_router(responses.router, prefix="/api/responses", tags=["Respuestas"])
 app.include_router(analytics.router, prefix="/api/analytics", tags=["Análisis"])
+app.include_router(respondents.router, prefix="/api/respondents", tags=["Encuestados"])
+app.include_router(analysis.router, prefix="/api/analysis", tags=["Análisis IA"])
 
 
 @app.get("/")

@@ -5,6 +5,7 @@ Compliant with Paraguay Law 7593/2025
 
 from pydantic_settings import BaseSettings
 from functools import lru_cache
+from typing import List, Optional
 
 
 class Settings(BaseSettings):
@@ -18,7 +19,9 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379"
 
     # Encryption (Law 7593/2025 compliance)
-    ENCRYPTION_KEY: str = ""  # Must be 32-byte base64 encoded
+    ENCRYPTION_KEY: str = ""      # v1 key - Must be 32-byte base64 encoded
+    ENCRYPTION_KEY_V2: str = ""   # v2 key for rotation (optional)
+    BLIND_INDEX_KEY: str = ""     # Independent key for searchable encryption
 
     # Twilio
     TWILIO_ACCOUNT_SID: str = ""
@@ -38,7 +41,7 @@ class Settings(BaseSettings):
     MAPBOX_ACCESS_TOKEN: str = ""
 
     # CORS
-    CORS_ORIGINS: list[str] = ["http://localhost:3000"]
+    CORS_ORIGINS: List[str] = ["http://localhost:3000"]
 
     # Paraguay Locale
     DEFAULT_LOCALE: str = "es-PY"

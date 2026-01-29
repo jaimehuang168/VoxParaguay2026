@@ -118,11 +118,17 @@ model Respondent {
   id String @id @default(cuid())
 
   // ENCRYPTED FIELDS (AES-256-GCM) - Law 7593/2025 compliance
+  // Format: "version:nonce+ciphertext" (supports key rotation)
   phoneEncrypted  String  @map("phone_encrypted")   // Encrypted phone
   cedulaEncrypted String? @map("cedula_encrypted")  // Encrypted national ID
 
   // Hash for duplicate detection (without exposing actual phone)
   phoneHash String @unique @map("phone_hash")
+
+  // BLIND INDEX (HMAC-SHA256) - For searchable encryption
+  // Allows searching without decrypting, using independent BLIND_INDEX_KEY
+  cedulaIndex String? @map("cedula_index")  // HMAC hash of cedula for search
+  phoneIndex  String? @map("phone_index")   // HMAC hash of phone for search
 
   // Demographics (anonymized, no PII)
   region      String?
@@ -134,6 +140,8 @@ model Respondent {
 
   createdAt DateTime @default(now()) @map("created_at")
 
+  @@index([cedulaIndex])
+  @@index([phoneIndex])
   @@map("respondents")
 }
 
@@ -282,4 +290,46 @@ enum ReportStatus {
   GENERATING // generando
   READY      // listo
   FAILED     // fallido
+}
+
+// ============ AUDIT LOG (Registro de Auditoría) ============
+// Law 7593/2025 compliance - Track all PII access
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  timestamp   DateTime @default(now())
+
+  // Actor information (who accessed)
+  actorId     String   @map("actor_id")      // Agent/System ID
+  actorName   String   @map("actor_name")    // Agent name for readability
+
+  // Action details
+  action      AuditAction                    // Type of action performed
+  targetType  String   @map("target_type")   // "Respondent", "Response", etc.
+  targetId    String   @map("target_id")     // ID of accessed record
+
+  // Purpose (required by Law 7593/2025)
+  purpose     String                         // Justification for access
+
+  // Request metadata
+  ipAddress   String?  @map("ip_address")
+  userAgent   String?  @map("user_agent")
+
+  // Additional context
+  details     Json?                          // Extra details if needed
+
+  @@index([actorId])
+  @@index([targetType, targetId])
+  @@index([timestamp])
+  @@map("audit_logs")
+}
+
+enum AuditAction {
+  CREATE      // Crear registro
+  READ        // Leer/consultar
+  UPDATE      // Actualizar
+  DELETE      // Eliminar
+  SEARCH      // Búsqueda
+  EXPORT      // Exportar datos
+  DECRYPT     // Desencriptar PII
 }
