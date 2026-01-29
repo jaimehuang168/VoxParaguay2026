@@ -12,7 +12,7 @@ from typing import Optional, Dict, Any, List
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
-from anthropic import Anthropic
+import google.generativeai as genai
 
 from app.core.config import settings
 from app.services.sentiment_service import get_sentiment_service
@@ -222,21 +222,36 @@ Por favor, genera un resumen ejecutivo siguiendo la estructura indicada en tus i
 # ============ AI CLIENT ============
 
 class AISummaryService:
-    """Service for generating AI-powered department summaries."""
+    """Service for generating AI-powered department summaries using Google Gemini."""
 
     def __init__(self):
-        self._client: Optional[Anthropic] = None
+        self._model = None
+        self._configured = False
+
+    def _configure(self):
+        """Configure the Gemini API client."""
+        if self._configured:
+            return
+
+        if not settings.GOOGLE_API_KEY:
+            raise HTTPException(
+                status_code=503,
+                detail="Servicio de IA no configurado. Falta GOOGLE_API_KEY."
+            )
+
+        genai.configure(api_key=settings.GOOGLE_API_KEY)
+        self._configured = True
 
     @property
-    def client(self) -> Anthropic:
-        if self._client is None:
-            if not settings.ANTHROPIC_API_KEY:
-                raise HTTPException(
-                    status_code=503,
-                    detail="Servicio de IA no configurado. Falta ANTHROPIC_API_KEY."
-                )
-            self._client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
-        return self._client
+    def model(self):
+        """Get or create the Gemini model instance."""
+        if self._model is None:
+            self._configure()
+            self._model = genai.GenerativeModel(
+                model_name="gemini-2.5-flash",
+                system_instruction=SOCIOLOGIST_SYSTEM_PROMPT,
+            )
+        return self._model
 
     async def generate_summary(
         self,
@@ -247,7 +262,7 @@ class AISummaryService:
         max_tokens: int = 1024,
     ) -> str:
         """
-        Generate AI summary for a department.
+        Generate AI summary for a department using Google Gemini.
 
         Args:
             dept_id: Department ISO code
@@ -268,14 +283,15 @@ class AISummaryService:
         )
 
         try:
-            response = self.client.messages.create(
-                model="claude-sonnet-4-20250514",
-                max_tokens=max_tokens,
-                system=SOCIOLOGIST_SYSTEM_PROMPT,
-                messages=[{"role": "user", "content": prompt}]
+            response = self.model.generate_content(
+                prompt,
+                generation_config=genai.types.GenerationConfig(
+                    max_output_tokens=max_tokens,
+                    temperature=0.7,
+                )
             )
 
-            return response.content[0].text
+            return response.text
 
         except Exception as e:
             raise HTTPException(
@@ -421,7 +437,7 @@ async def summary_health_check():
         return {
             "status": "healthy",
             "service": "ai-summary",
-            "model": "claude-sonnet-4-20250514",
+            "model": "gemini-2.5-flash",
         }
     except Exception as e:
         return {

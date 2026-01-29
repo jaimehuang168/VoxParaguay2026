@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     # Anthropic (Claude AI)
     ANTHROPIC_API_KEY: str = ""
 
+    # Google (Gemini AI)
+    GOOGLE_API_KEY: str = ""
+
     # Mapbox
     MAPBOX_ACCESS_TOKEN: str = ""
 
