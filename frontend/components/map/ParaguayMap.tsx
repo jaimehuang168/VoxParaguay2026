@@ -674,8 +674,8 @@ export default function ParaguayMap({
               <div>
                 <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
                   <span>Resumen de Inteligencia Artificial</span>
-                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                    Claude 3.5
+                  <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
+                    Gemini AI
                   </span>
                 </h4>
 

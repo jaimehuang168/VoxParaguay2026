@@ -196,10 +196,8 @@ class AgentUser(HttpUser):
         with self.client.post(
             "/api/v1/agents/login",
             json={
-                "agent_id": self.agent_id,
-                "agent_name": self.agent_name,
+                "nombre": self.agent_name,
                 "region": self.current_region,
-                "skills": ["voice", "whatsapp"],
             },
             catch_response=True
         ) as response:

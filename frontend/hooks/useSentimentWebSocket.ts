@@ -67,10 +67,22 @@ function getDefaultWsUrl(): string {
     return "ws://localhost:8000/ws/sentiment";
   }
 
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const host = process.env.NEXT_PUBLIC_WS_HOST || "localhost:8000";
+  // Check for explicit WS URL first
+  const wsUrl = process.env.NEXT_PUBLIC_WS_URL;
+  if (wsUrl) {
+    return `${wsUrl}/ws/sentiment`;
+  }
 
-  return `${protocol}//${host}/ws/sentiment`;
+  // Then check for WS host
+  const wsHost = process.env.NEXT_PUBLIC_WS_HOST;
+  if (wsHost) {
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    return `${protocol}//${wsHost}/ws/sentiment`;
+  }
+
+  // Default fallback - use same host as page but port 8000
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  return `${protocol}//localhost:8000/ws/sentiment`;
 }
 
 /**
