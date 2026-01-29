@@ -1,0 +1,285 @@
+// VoxParaguay 2026 - Prisma Schema
+// Compliant with Paraguay Law 7593/2025 (Field-Level Encryption)
+
+generator client {
+  provider             = "prisma-client-py"
+  interface            = "asyncio"
+  recursive_type_depth = 5
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============ AGENTS (Agentes) ============
+
+model Agent {
+  id        String   @id @default(cuid())
+  nombre    String
+  email     String   @unique
+  telefono  String?
+  password  String   // Hashed
+  estado    AgentStatus @default(OFFLINE)
+
+  // Statistics
+  encuestasCompletadasHoy Int   @default(0) @map("encuestas_completadas_hoy")
+  tiempoPromedioEncuesta  Float @default(0) @map("tiempo_promedio_encuesta") // minutes
+
+  // Relations
+  sessions   SurveySession[]
+  responses  Response[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("agents")
+}
+
+enum AgentStatus {
+  AVAILABLE  // disponible
+  BUSY       // ocupado
+  OFFLINE    // desconectado
+  BREAK      // descanso
+}
+
+// ============ CAMPAIGNS (Campañas) ============
+
+model Campaign {
+  id          String   @id @default(cuid())
+  nombre      String
+  descripcion String?
+  estado      CampaignStatus @default(DRAFT)
+
+  fechaInicio DateTime @map("fecha_inicio")
+  fechaFin    DateTime @map("fecha_fin")
+
+  // Paraguay regions
+  regiones    String[] @default(["Asunción", "Central", "Alto Paraná", "Itapúa"])
+
+  // Goals
+  metaEncuestas        Int @default(1000) @map("meta_encuestas")
+  encuestasCompletadas Int @default(0) @map("encuestas_completadas")
+
+  // Relations
+  questions  SurveyQuestion[]
+  sessions   SurveySession[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("campaigns")
+}
+
+enum CampaignStatus {
+  DRAFT      // borrador
+  ACTIVE     // activo
+  PAUSED     // pausado
+  COMPLETED  // completado
+}
+
+// ============ SURVEY QUESTIONS (Preguntas) ============
+
+model SurveyQuestion {
+  id         String   @id @default(cuid())
+  campaignId String   @map("campaign_id")
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  orden      Int
+  texto      String
+  tipo       QuestionType
+  opciones   String[]   // For multiple choice
+  peso       Float      @default(1.0) // Weight for sentiment calculation
+
+  // Conditional branching
+  condicion  Json?      // {"si_respuesta": "X", "ir_a": "question_id"}
+
+  // Relations
+  responses  Response[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([campaignId, orden])
+  @@map("survey_questions")
+}
+
+enum QuestionType {
+  SCALE           // escala (1-5, 1-10)
+  MULTIPLE_CHOICE // opcion_multiple
+  FREE_TEXT       // texto_libre
+  YES_NO          // si_no
+  NPS             // Net Promoter Score (0-10)
+}
+
+// ============ RESPONDENTS (Encuestados) ============
+// PII fields encrypted per Law 7593/2025
+
+model Respondent {
+  id String @id @default(cuid())
+
+  // ENCRYPTED FIELDS (AES-256-GCM) - Law 7593/2025 compliance
+  phoneEncrypted  String  @map("phone_encrypted")   // Encrypted phone
+  cedulaEncrypted String? @map("cedula_encrypted")  // Encrypted national ID
+
+  // Hash for duplicate detection (without exposing actual phone)
+  phoneHash String @unique @map("phone_hash")
+
+  // Demographics (anonymized, no PII)
+  region      String?
+  genero      String?  // M, F, Otro
+  rangoEdad   String?  @map("rango_edad") // "18-24", "25-34", etc.
+
+  // Relations
+  sessions SurveySession[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("respondents")
+}
+
+// ============ SURVEY SESSIONS ============
+
+model SurveySession {
+  id           String   @id @default(cuid())
+
+  campaignId   String   @map("campaign_id")
+  campaign     Campaign @relation(fields: [campaignId], references: [id])
+
+  agentId      String   @map("agent_id")
+  agent        Agent    @relation(fields: [agentId], references: [id])
+
+  respondentId String   @map("respondent_id")
+  respondent   Respondent @relation(fields: [respondentId], references: [id])
+
+  canal        Channel
+  estado       SessionStatus @default(IN_PROGRESS)
+
+  // Timing
+  iniciadoEn    DateTime  @default(now()) @map("iniciado_en")
+  completadoEn  DateTime? @map("completado_en")
+  duracionSeg   Int?      @map("duracion_seg")
+
+  // Offline sync support
+  syncStatus    SyncStatus @default(SYNCED)
+  localId       String?    @map("local_id") // For offline tracking
+
+  notas String?
+
+  // Relations
+  responses Response[]
+
+  @@map("survey_sessions")
+}
+
+enum Channel {
+  VOICE     // Twilio voice call
+  WHATSAPP  // Meta WhatsApp
+  FACEBOOK  // Meta Messenger
+  INSTAGRAM // Meta Instagram DM
+}
+
+enum SessionStatus {
+  IN_PROGRESS // en_progreso
+  COMPLETED   // completado
+  ABANDONED   // abandonado
+  PAUSED      // pausado
+}
+
+enum SyncStatus {
+  SYNCED      // sincronizado
+  PENDING     // pendiente
+  CONFLICT    // conflicto
+}
+
+// ============ RESPONSES (Respuestas) ============
+
+model Response {
+  id String @id @default(cuid())
+
+  sessionId   String        @map("session_id")
+  session     SurveySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  questionId  String        @map("question_id")
+  question    SurveyQuestion @relation(fields: [questionId], references: [id])
+
+  agentId     String        @map("agent_id")
+  agent       Agent         @relation(fields: [agentId], references: [id])
+
+  // Response data
+  respuestaTexto    String?  @map("respuesta_texto")
+  respuestaNumero   Float?   @map("respuesta_numero")
+  respuestaOpciones String[] @map("respuesta_opciones")
+
+  // AI Analysis (populated after processing)
+  sentimientoPuntaje  Float?   @map("sentimiento_puntaje") // -1 to 1
+  sentimientoClase    String?  @map("sentimiento_clase")   // positivo/negativo/neutro
+  etiquetas           String[] // Auto-extracted tags
+  traduccionEspanol   String?  @map("traduccion_espanol")  // Jopara translation
+  idiomaDetectado     String?  @map("idioma_detectado")    // español/guaraní/jopara
+
+  // Metadata
+  duracionSeg Int? @map("duracion_seg")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("responses")
+}
+
+// ============ ANALYTICS CACHE ============
+
+model AnalyticsCache {
+  id         String   @id @default(cuid())
+  campaignId String   @map("campaign_id")
+
+  tipo       String   // "sentiment", "geographic", "tags", "trend"
+  periodo    String   // "hora", "dia", "semana", "total"
+  fecha      DateTime
+
+  datos      Json     // Cached analytics data
+
+  createdAt  DateTime @default(now()) @map("created_at")
+  expiresAt  DateTime @map("expires_at")
+
+  @@unique([campaignId, tipo, periodo, fecha])
+  @@map("analytics_cache")
+}
+
+// ============ REPORTS ============
+
+model Report {
+  id         String   @id @default(cuid())
+  campaignId String   @map("campaign_id")
+
+  tipo       ReportType
+  formato    ReportFormat
+  estado     ReportStatus @default(GENERATING)
+
+  archivoUrl String?  @map("archivo_url")
+
+  // Report metadata
+  parametros Json?    // Filters applied
+
+  generadoPor String  @map("generado_por") // Agent ID or "sistema"
+  generadoEn  DateTime @default(now()) @map("generado_en")
+
+  @@map("reports")
+}
+
+enum ReportType {
+  DAILY      // diario
+  WEEKLY     // semanal
+  CAMPAIGN   // campaña completa
+  CUSTOM     // personalizado
+}
+
+enum ReportFormat {
+  PDF
+  CSV
+  JSON
+}
+
+enum ReportStatus {
+  GENERATING // generando
+  READY      // listo
+  FAILED     // fallido
+}

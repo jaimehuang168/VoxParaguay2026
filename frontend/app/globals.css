@@ -1,0 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 249, 250, 251;
+  --background-end-rgb: 255, 255, 255;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(var(--background-end-rgb))
+    )
+    rgb(var(--background-start-rgb));
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
+
+/* Offline indicator styles */
+.offline-banner {
+  @apply fixed top-0 left-0 right-0 bg-yellow-500 text-white text-center py-2 z-50;
+}
+
+/* Agent status indicators */
+.status-available {
+  @apply bg-green-500;
+}
+
+.status-busy {
+  @apply bg-red-500;
+}
+
+.status-offline {
+  @apply bg-gray-400;
+}
+
+.status-break {
+  @apply bg-yellow-500;
+}
+
+/* Sentiment colors */
+.sentiment-positive {
+  @apply text-sentiment-positive;
+}
+
+.sentiment-neutral {
+  @apply text-sentiment-neutral;
+}
+
+.sentiment-negative {
+  @apply text-sentiment-negative;
+}
+
+/* Survey emoji buttons */
+.survey-emoji-btn {
+  @apply text-4xl p-4 rounded-xl border-2 border-gray-200
+         hover:border-primary-500 hover:bg-primary-50
+         transition-all duration-200 cursor-pointer;
+}
+
+.survey-emoji-btn.selected {
+  @apply border-primary-500 bg-primary-100;
+}
